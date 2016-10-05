@@ -16,10 +16,21 @@ import (
 
 
 type mlogger struct {
-	Logger	*log.Logger
-	Prefix	string
-	Writer	io.Writer
+	logger	*log.Logger
+	prefix	string
+	writer	io.Writer
 }
+
+func (ml *mlogger) Println(v ...interface{}) {
+	ml.logger.Println(v...)
+	return
+}
+
+func (ml *mlogger) Printf(format string, v ...interface{}) {
+	ml.logger.Printf(format, v...)
+	return
+}
+
 
 const (
 	LEVEL_TRACE				= "trace"
@@ -31,6 +42,7 @@ const (
 	LEVEL_FATAL				= "fatal"
 	DEFAULT_THRESHOLD	= LEVEL_WARN
 
+	NONE	= 0
 	DATE	= log.Ldate
 	TIME	= log.Ltime
 	SFILE	= log.Lshortfile
@@ -45,22 +57,22 @@ var (
 
 	DISCARD		io.Writer = ioutil.Discard
 
-	TRACE			*log.Logger
-	DEBUG			*log.Logger
-	INFO			*log.Logger
-	WARN			*log.Logger
-	ERROR			*log.Logger
-	CRITICAL	*log.Logger
-	FATAL			*log.Logger
+	TRACE			*mlogger = &mlogger{ prefix:"TRACE: ", writer:os.Stdout }
+	DEBUG			*mlogger = &mlogger{ prefix:"DEBUG: ", writer:os.Stdout }
+	INFO			*mlogger = &mlogger{ prefix:"INFO: ", writer:os.Stdout }
+	WARN			*mlogger = &mlogger{ prefix:"WARN: ", writer:os.Stdout }
+	ERROR			*mlogger = &mlogger{ prefix:"ERROR: ", writer:os.Stdout }
+	CRITICAL	*mlogger = &mlogger{ prefix:"CRITICAL: ", writer:os.Stdout }
+	FATAL			*mlogger = &mlogger{ prefix:"FATAL: ", writer:os.Stdout }
 
 	loggers map[string]*mlogger = map[string]*mlogger {
-		"trace":		&mlogger{ Logger:TRACE, Prefix:"TRACE", Writer:os.Stdout },
-		"debug":		&mlogger{ Logger:DEBUG, Prefix:"DEBUG", Writer:os.Stdout },
-		"info":			&mlogger{ Logger:INFO, Prefix:"INFO", Writer:os.Stdout },
-		"warn":			&mlogger{ Logger:WARN, Prefix:"WARN", Writer:os.Stdout },
-		"error":		&mlogger{ Logger:ERROR, Prefix:"ERROR", Writer:os.Stdout },
-		"critical":	&mlogger{ Logger:CRITICAL, Prefix:"CRITICAL", Writer:os.Stdout },
-		"fatal":		&mlogger{ Logger:FATAL, Prefix:"FATAL", Writer:os.Stdout },
+		"trace":		TRACE,
+		"debug":		DEBUG,
+		"info":		INFO,
+		"warn":		WARN,
+		"error":		ERROR,
+		"critical":	CRITICAL,
+		"fatal":		FATAL,
 	}
 )
 
@@ -73,27 +85,12 @@ func init() {
 		levelsEnum[name] = index
 	}
 
-	// Initialize loggers
+	// Initialize default loggers using the values encoded in 'loggers' map
 	for _, l := range loggers {
-		l.Logger = log.New(os.Stdout, l.Prefix, flags)
+		l.logger = log.New(l.writer, l.prefix, flags)
 	}
 
 	SetThreshold(DEFAULT_THRESHOLD)
-}
-
-
-func applyThreshold() {
-	t := levelsEnum[threshold]
-	for key, level := range levelsEnum {
-		l := loggers[key]
-		if level < t {
-			// Apply discard writer
-			l.Logger.SetOutput(DISCARD)
-		} else {
-			// Restore configured writer
-			l.Logger.SetOutput(l.Writer)
-		}
-	}
 }
 
 
@@ -102,18 +99,18 @@ func Threshold() string {
 }
 
 
-func NewCustomLogger(name string, prefix string) {
+func NewLogger(name string, prefix string) {
 	loggers[name] = &mlogger{
-		Logger:		log.New(os.Stdout, prefix, flags),
-		Prefix:		prefix,
-		Writer:		os.Stdout,
+		logger:		log.New(os.Stdout, prefix, flags),
+		prefix:		prefix,
+		writer:		os.Stdout,
 	}
 }
 
 
 func Println(logger string, v ...interface{}) {
 	if handler, ok := loggers[logger]; ok == true {
-		handler.Logger.Println(v...)
+		handler.logger.Println(v...)
 	}
 	return
 }
@@ -121,25 +118,27 @@ func Println(logger string, v ...interface{}) {
 
 func Printf(logger string, format string, v ...interface{}) {
 	if handler, ok := loggers[logger]; ok == true {
-		handler.Logger.Printf(format, v...)
+		handler.logger.Printf(format, v...)
 	}
 	return
 }
 
 
-// Set the log flags for all loggers (available: DATE, TIME, SFILE, LFILE, and MSEC).
+// Set the log flags for loggers (available: DATE, TIME, SFILE, LFILE, MSEC,
+// and NONE).  If no list of loggers is provided, then all logger's flags
+// are set.
 func SetFlags(flagset int, loggerList ...string) {
 	flags = flagset
 	if len(loggerList) == 0 {
 		// Change flags for ALL loggers
 		for _, ml := range loggers {
-			ml.Logger.SetFlags(flags)
+			ml.logger.SetFlags(flags)
 		}
 	} else {
 		// Change flags for named loggers
 		for _, logger := range loggerList {
 			if ml, ok := loggers[logger]; ok == true {
-				ml.Logger.SetFlags(flags)
+				ml.logger.SetFlags(flags)
 			}
 		}
 	}
@@ -153,29 +152,51 @@ func SetOutput(logger string, writers ...io.Writer) {
 		return
 	}
 
+	// Set the logger's writer (ignoring thresholding)
 	switch len(writers) {
 	case 0:
 		WARN.Println("no io.Writer(s) provided for output", logger)
 		return
 	case 1:
-		handler.Writer = writers[0]
+		handler.writer = writers[0]
 	default:
-		handler.Writer = io.MultiWriter(writers...)
+		handler.writer = io.MultiWriter(writers...)
 	}
 
-	handler.Logger.SetOutput(handler.Writer)
-
-	if _, ok := loggers[logger]; ok == true {
-		applyThreshold()
+	// Update the output handler of the logger
+	if _, ok := levelsEnum[logger]; ok == true {
+		/* 
+		 * If the logger is subject to thresholding, we only update the handler
+		 * when it falls within the current threshold.
+		 */
+		if levelsEnum[logger] >= levelsEnum[threshold] {
+			handler.logger.SetOutput(handler.writer)
+		}
+	} else {
+		// Loggers not subject to thresholding should be immediately updated
+		handler.logger.SetOutput(handler.writer)
 	}
 }
 
 
 func SetThreshold(level string) {
+	// Update overall level
 	if _, ok := levelsEnum[level]; ok == false {
 		WARN.Printf("ignoring invalid log level '%s'", level)
 		return
 	}
 	threshold = level
-	applyThreshold()
+
+	// Re-evaluate each default logger's threshold
+	enum := levelsEnum[threshold]
+	for key, l := range levelsEnum {
+		logger := *loggers[key].logger
+		if l < enum {
+			// Apply discard writer
+			logger.SetOutput(DISCARD)
+		} else {
+			// Restore configured writer
+			logger.SetOutput(loggers[key].writer)
+		}
+	}
 }
