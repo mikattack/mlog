@@ -1,29 +1,25 @@
 # mauth
 
-A wrapper around the excellent standard Go logging library, `mauth` satisfies my logging preferences in ways that no other package quite has:
+A wrapper around the excellent standard Go logging library, `mlog` satisfies my logging preferences in ways that no other package quite has.  It provides:
 
 - Logging levels
-- Allow easy control of where messages are logged to
-- Allow easy control of what levels are logged
-- Not require any configuration or initialization (sensible defaults)
-- Support output to multiple streams (per log level, multiple writers per level)
+- Easy control of where messages are logged to
+- Easy control of what levels are logged
+- No requirements for configuration or initialization (sensible defaults)
+- Support for output to multiple streams, customizable per logging level
+- No `fatal` or `panic` calls
 
-This package is based heavily on (jWalterWeatherman)[https://github.com/spf13/jWalterWeatherman],
-which was the closest library I knew of that met my needs.
+This library is based heavily on [jWalterWeatherman](https://github.com/spf13/jWalterWeatherman),
+which was the closest library I'd found that met my needs.
+
+Additionally, while this library supports logging to any destination, if that destination is `syslog` then you're better off using Go's `log/syslog` package.
+
 
 # Usage
 
-No initialization or configuration is necessary.  The library works by creating a number of loggers which correspond to the following logging levels:
+No initialization or configuration is necessary.  The library works by creating a number of loggers which correspond to the following logging levels: `TRACE`, `DEBUG `, `INFO `, `WARN `, `ERROR`, `CRITICAL`, and `FATAL`.
 
-- TRACE
-- DEBUG
-- INFO
-- WARN
-- ERROR
-- CRITICAL
-- FATAL
-
-These loggers are based on the standard `log` library and operate much the same way:
+These loggers are very basic, offering only `Println` and `Printf`:
 
 ```
 import "gitlab.com/mikattack/mlog"
@@ -40,17 +36,17 @@ if warn != nil {
 mauth.INFO.Printf("the ice skates are %s", color)
 ```
 
-While seven log levels is a lot, you can choose to use the ones appropriate to your application. Furthermore, only those messages falling within the range of the logging threshold will actually be output.
+While seven log levels is a lot, you can choose to use the ones appropriate for your application. Only those messages falling within the range of the logging threshold will actually be output.
 
-Additionally, you can create custom loggers which output to the `io.Writer` of your choice and is unaffected by logging thresholds:
+You can also create custom loggers, which output to the `io.Writer` of your choice and are unaffected by logging thresholds. In this example, we create a custom logger that outputs
+only a prefix and a message:
 
 ```
-mlog.NewCustomLogger("telemetry", "TELEMENTRY")
+mlog.NewLogger("my-logger", "TEST: ")
+mlog.SetFlags(mauth.NONE)
+mlog.Printf("my-logger", "my message")
 
-// Write statistics to the "telemetry" custom logger
-if configs["telemetry"] == true {
-  stats := ...
-  mlog.Printf("telemetry", stats)
+// Output: "TEST: my message"
 }
 ```
 
@@ -60,8 +56,11 @@ if configs["telemetry"] == true {
 The library defaults to the following behavior:
 
 - Log level is `WARN`
-- Trace, debug and info messages are discarded
-- Warn, error, critical, and fatal messages are logged to `STDOUT`
+- `TRACE`, `DEBUG` and `INFO` messages are discarded
+- `WARN`, `ERROR`, `CRITICAL`, and `FATAL` messages are logged to `STDOUT`
+- Flags are: `DATE`, `TIME`, and `SFILE`
+
+Each of these settings are configurable.
 
 ### Change logging threshold
 
@@ -69,7 +68,7 @@ The threshold can be changed at any time, but will only affect calls executed af
 
 ```
 if verbose == true {
-  mlog.SetLogThreshold(mauth.LEVEL_TRACE)
+  mlog.SetLogThreshold(mlog.LEVEL_TRACE)
 }
 ```
 
@@ -89,13 +88,13 @@ mlog.SetOutput(mlog.LEVEL_CRITICAL, os.Stderr)
 mlog.SetOutput(mlog.LEVEL_FATAL, os.Stderr)
 
 // Works for custom loggers too!
-mlog.SetOutput("telemetry", os.Stderr)
+mlog.SetOutput("my-logger", os.Stderr)
 ```
 
 Because the output is just an `io.Writer`, it's also easy to write log streams to a file:
 
 ```
-file := os.OpenFile("/var/tmp/example.log", os.O_RDWR|os.O_APPEND, 0660);
+file := os.OpenFile("/var/tmp/warnings.log", os.O_RDWR|os.O_APPEND, 0660);
 defer file.Close()
 
 mlog.SetOutput(mlog.LEVEL_WARN, file)
@@ -109,6 +108,25 @@ defer errlog.Close()
 
 // Output ERROR messages to STDERR and "/var/tmp/errors.log"
 mlog.SetOutput(mlog.LEVEL_ERROR, os.Stderr, errlog)
+```
+
+### Change log flags
+
+Flags control what extra information gets added to every message:
+
+- `NONE` - Adds nothing to the message (and ignored when used with other flags)
+- `DATE` - Adds the date to a message
+- `TIME` - Adds the time to a message
+- `SFILE` - Adds the file the message originated from
+- `LFILE` - Adds the line number the message originated from
+- `MSEC` - Adds microsecond resolution to the time (if present)
+
+Flags may be set per log stream or all at once:
+
+```
+// Strip all extra output for log streams, except ERROR
+mlog.SetFlags(NONE)
+mlog.SetFlags(DATE | TIME | SFILE, mlog.LEVEL_ERROR)
 ```
 
 
