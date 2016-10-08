@@ -1,4 +1,4 @@
-# mauth
+# mlog
 
 A wrapper around the excellent standard Go logging library, `mlog` satisfies my logging preferences in ways that no other package quite has.  It provides:
 
@@ -27,28 +27,16 @@ import "gitlab.com/mikattack/mlog"
 ...
 
 if err != nil {
-  mauth.ERROR.Println(err)
+  mlog.ERROR.Println(err)
 }
 if warn != nil {
-  mauth.WARN.Println(warn)
+  mlog.WARN.Println(warn)
 }
 
-mauth.INFO.Printf("the ice skates are %s", color)
+mlog.INFO.Printf("the ice skates are %s", color)
 ```
 
 While seven log levels is a lot, you can choose to use the ones appropriate for your application. Only those messages falling within the range of the logging threshold will actually be output.
-
-You can also create custom loggers, which output to the `io.Writer` of your choice and are unaffected by logging thresholds. In this example, we create a custom logger that outputs
-only a prefix and a message:
-
-```
-mlog.NewLogger("my-logger", "TEST: ")
-mlog.SetFlags(mauth.NONE)
-mlog.Printf("my-logger", "my message")
-
-// Output: "TEST: my message"
-}
-```
 
 
 # Configuration
@@ -86,9 +74,6 @@ mlog.SetOutput(mlog.LEVEL_WARN, os.Stderr)
 mlog.SetOutput(mlog.LEVEL_ERROR, os.Stderr)
 mlog.SetOutput(mlog.LEVEL_CRITICAL, os.Stderr)
 mlog.SetOutput(mlog.LEVEL_FATAL, os.Stderr)
-
-// Works for custom loggers too!
-mlog.SetOutput("my-logger", os.Stderr)
 ```
 
 Because the output is just an `io.Writer`, it's also easy to write log streams to a file:

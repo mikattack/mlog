@@ -99,6 +99,12 @@ func Threshold() string {
 }
 
 
+/* 
+ * Disable "custom" loggers until a compelling use case presents itself.
+ * The issue is that any file or line number flags will report the logging
+ * library rather than calling code, since the actual print calls are just
+ * pass-through functions.
+ *
 func NewLogger(name string, prefix string) {
 	loggers[name] = &mlogger{
 		logger:		log.New(os.Stdout, prefix, flags),
@@ -106,6 +112,7 @@ func NewLogger(name string, prefix string) {
 		writer:		os.Stdout,
 	}
 }
+*/
 
 
 func Println(logger string, v ...interface{}) {
