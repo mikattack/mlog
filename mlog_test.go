@@ -10,6 +10,7 @@ package mlog
 import (
 	"bytes"
 	"fmt"
+	"log"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -37,7 +38,7 @@ func TestSetLevel(t *testing.T) {
 func TestDefaultLogging(t *testing.T) {
 	SetThreshold(DEFAULT_THRESHOLD)
 	cases := []struct {
-		logger		*mlogger
+		logger		*log.Logger
 		name			string
 		message		string
 		expected	bool	
@@ -91,22 +92,21 @@ func TestCustomLogging(t *testing.T) {
 
 
 func TestFlagSet(t *testing.T) {
-	ln := "test-logger"
 	SetFlags(SFILE)
-	SetFlags(NONE, ln)
+	SetFlags(NONE, LEVEL_FATAL)
 	cases := []struct {
+		logger		*log.Logger
 		name			string
 		expected	bool
 	}{
-		{ln, false},
-		{"warn", true},
-		{"fatal", true},
+		{WARN, "warn", true},
+		{FATAL, "fatal", false},
 	}
 	for _, tc := range cases {
 		t.Run(fmt.Sprintf(tc.name), func (t *testing.T) {
 			buffer := new(bytes.Buffer)
 			SetOutput(tc.name, buffer)
-			Println(tc.name, "test message")
+			tc.logger.Println(tc.name, "test message")
 			if tc.expected == true {
 				assert.Contains(t, buffer.String(), ".go:")
 			} else {

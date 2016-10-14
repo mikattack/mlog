@@ -42,12 +42,13 @@ const (
 	LEVEL_FATAL				= "fatal"
 	DEFAULT_THRESHOLD	= LEVEL_WARN
 
-	NONE	= 0
-	DATE	= log.Ldate
-	TIME	= log.Ltime
+	NONE		= 0
+	DATE		= log.Ldate
+	TIME		= log.Ltime
 	SFILE	= log.Lshortfile
 	LFILE	= log.Llongfile
-	MSEC	= log.Lmicroseconds
+	MSEC		= log.Lmicroseconds
+	COMMON	= log.LUTC | DATE | TIME | SFILE
 )
 
 var (
@@ -57,22 +58,22 @@ var (
 
 	DISCARD		io.Writer = ioutil.Discard
 
-	TRACE			*mlogger = &mlogger{ prefix:"TRACE: ", writer:os.Stdout }
-	DEBUG			*mlogger = &mlogger{ prefix:"DEBUG: ", writer:os.Stdout }
-	INFO			*mlogger = &mlogger{ prefix:"INFO: ", writer:os.Stdout }
-	WARN			*mlogger = &mlogger{ prefix:"WARN: ", writer:os.Stdout }
-	ERROR			*mlogger = &mlogger{ prefix:"ERROR: ", writer:os.Stdout }
-	CRITICAL	*mlogger = &mlogger{ prefix:"CRITICAL: ", writer:os.Stdout }
-	FATAL			*mlogger = &mlogger{ prefix:"FATAL: ", writer:os.Stdout }
+	TRACE			*log.Logger = log.New(os.Stdout, "", COMMON)
+	DEBUG			*log.Logger = log.New(os.Stdout, "", COMMON)
+	INFO			*log.Logger = log.New(os.Stdout, "", COMMON)
+	WARN			*log.Logger = log.New(os.Stdout, "", COMMON)
+	ERROR			*log.Logger = log.New(os.Stdout, "", COMMON)
+	CRITICAL	*log.Logger = log.New(os.Stdout, "", COMMON)
+	FATAL			*log.Logger = log.New(os.Stdout, "", COMMON)
 
 	loggers map[string]*mlogger = map[string]*mlogger {
-		"trace":		TRACE,
-		"debug":		DEBUG,
-		"info":		INFO,
-		"warn":		WARN,
-		"error":		ERROR,
-		"critical":	CRITICAL,
-		"fatal":		FATAL,
+		"trace":		&mlogger{ prefix:"TRACE: ", writer:os.Stdout, logger:TRACE },
+		"debug":		&mlogger{ prefix:"DEBUG: ", writer:os.Stdout, logger:DEBUG },
+		"info":		&mlogger{ prefix:"INFO: ", writer:os.Stdout, logger:INFO },
+		"warn":		&mlogger{ prefix:"WARN: ", writer:os.Stdout, logger:WARN },
+		"error":		&mlogger{ prefix:"ERROR: ", writer:os.Stdout, logger:ERROR },
+		"critical":	&mlogger{ prefix:"CRITICAL: ", writer:os.Stdout, logger:CRITICAL },
+		"fatal":		&mlogger{ prefix:"FATAL: ", writer:os.Stdout, logger:FATAL },
 	}
 )
 
@@ -87,7 +88,7 @@ func init() {
 
 	// Initialize default loggers using the values encoded in 'loggers' map
 	for _, l := range loggers {
-		l.logger = log.New(l.writer, l.prefix, flags)
+		l.logger.SetPrefix(l.prefix)
 	}
 
 	SetThreshold(DEFAULT_THRESHOLD)
@@ -112,7 +113,6 @@ func NewLogger(name string, prefix string) {
 		writer:		os.Stdout,
 	}
 }
-*/
 
 
 func Println(logger string, v ...interface{}) {
@@ -129,6 +129,8 @@ func Printf(logger string, format string, v ...interface{}) {
 	}
 	return
 }
+ *
+ */
 
 
 // Set the log flags for loggers (available: DATE, TIME, SFILE, LFILE, MSEC,
@@ -192,12 +194,13 @@ func SetThreshold(level string) {
 		WARN.Printf("ignoring invalid log level '%s'", level)
 		return
 	}
+
 	threshold = level
 
 	// Re-evaluate each default logger's threshold
 	enum := levelsEnum[threshold]
 	for key, l := range levelsEnum {
-		logger := *loggers[key].logger
+		logger := loggers[key].logger
 		if l < enum {
 			// Apply discard writer
 			logger.SetOutput(DISCARD)
