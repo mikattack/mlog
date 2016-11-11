@@ -16,32 +16,30 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-
 func TestSetLevel(t *testing.T) {
 	cases := []struct {
-		level			string
-		expected	string
+		level    string
+		expected string
 	}{
 		{LEVEL_INFO, LEVEL_INFO},
 		{"whatever", LEVEL_INFO},
 		{LEVEL_WARN, LEVEL_WARN},
 	}
 	for _, tc := range cases {
-		t.Run(fmt.Sprintf(tc.level), func (t *testing.T) {
+		t.Run(fmt.Sprintf(tc.level), func(t *testing.T) {
 			SetThreshold(tc.level)
 			assert.Equal(t, Threshold(), tc.expected)
 		})
 	}
 }
 
-
 func TestDefaultLogging(t *testing.T) {
 	SetThreshold(DEFAULT_THRESHOLD)
 	cases := []struct {
-		logger		*log.Logger
-		name			string
-		message		string
-		expected	bool	
+		logger   *log.Logger
+		name     string
+		message  string
+		expected bool
 	}{
 		{FATAL, "fatal", "fatal error", true},
 		{CRITICAL, "critical", "critical error", true},
@@ -52,7 +50,7 @@ func TestDefaultLogging(t *testing.T) {
 		{TRACE, "trace", "trace message", false},
 	}
 	for _, tc := range cases {
-		t.Run(fmt.Sprintf(tc.message), func (t *testing.T) {
+		t.Run(fmt.Sprintf(tc.message), func(t *testing.T) {
 			buffer := new(bytes.Buffer)
 			SetOutput(tc.name, buffer)
 			tc.logger.Println(tc.message)
@@ -65,9 +63,8 @@ func TestDefaultLogging(t *testing.T) {
 	}
 }
 
-
 /*
- * 
+ *
 func TestCustomLogging(t *testing.T) {
 	ln := "test-logger"
 	NewLogger(ln, "TEST: ")
@@ -88,22 +85,21 @@ func TestCustomLogging(t *testing.T) {
 	}
 }
  *
- */
-
+*/
 
 func TestFlagSet(t *testing.T) {
 	SetFlags(SFILE)
 	SetFlags(NONE, LEVEL_FATAL)
 	cases := []struct {
-		logger		*log.Logger
-		name			string
-		expected	bool
+		logger   *log.Logger
+		name     string
+		expected bool
 	}{
 		{WARN, "warn", true},
 		{FATAL, "fatal", false},
 	}
 	for _, tc := range cases {
-		t.Run(fmt.Sprintf(tc.name), func (t *testing.T) {
+		t.Run(fmt.Sprintf(tc.name), func(t *testing.T) {
 			buffer := new(bytes.Buffer)
 			SetOutput(tc.name, buffer)
 			tc.logger.Println(tc.name, "test message")
