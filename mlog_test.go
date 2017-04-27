@@ -21,9 +21,9 @@ func TestSetLevel(t *testing.T) {
 		level    string
 		expected string
 	}{
-		{LEVEL_INFO, LEVEL_INFO},
-		{"whatever", LEVEL_INFO},
-		{LEVEL_WARN, LEVEL_WARN},
+		{LEVEL_PRODUCTION, LEVEL_PRODUCTION},
+		{"whatever", LEVEL_PRODUCTION},
+		{LEVEL_TOMORROW, LEVEL_TOMORROW},
 	}
 	for _, tc := range cases {
 		t.Run(fmt.Sprintf(tc.level), func(t *testing.T) {
@@ -33,21 +33,18 @@ func TestSetLevel(t *testing.T) {
 	}
 }
 
-func TestDefaultLogging(t *testing.T) {
-	SetThreshold(DEFAULT_THRESHOLD)
+func TestDefaultThresholdLogging(t *testing.T) {
+	SetThreshold(LEVEL_TOMORROW)
 	cases := []struct {
 		logger   *log.Logger
 		name     string
 		message  string
 		expected bool
 	}{
-		{FATAL, "fatal", "fatal error", true},
-		{CRITICAL, "critical", "critical error", true},
-		{ERROR, "error", "standard error", true},
-		{WARN, "warn", "warning message", true},
-		{INFO, "info", "information", false},
-		{DEBUG, "debug", "debug message", false},
-		{TRACE, "trace", "trace message", false},
+		{wakeMeInTheMiddleOfTheNight, "error", "standard error", true},
+		{toInvestigateTomorrow, "warn", "warning message", true},
+		{inProd, "info", "information", false},
+		{inTest, "debug", "debug message", false},
 	}
 	for _, tc := range cases {
 		t.Run(fmt.Sprintf(tc.message), func(t *testing.T) {
@@ -63,40 +60,16 @@ func TestDefaultLogging(t *testing.T) {
 	}
 }
 
-/*
- *
-func TestCustomLogging(t *testing.T) {
-	ln := "test-logger"
-	NewLogger(ln, "TEST: ")
-	cases := []struct {
-		name string
-		message string
-	}{
-		{ln, "custom message"},
-		{"warn", "warning message"},
-	}
-	for _, tc := range cases {
-		t.Run(fmt.Sprintf(tc.name), func (t *testing.T) {
-			buffer := new(bytes.Buffer)
-			SetOutput(tc.name, buffer)
-			Println(tc.name, tc.message)
-			assert.Contains(t, buffer.String(), tc.message)
-		})
-	}
-}
- *
-*/
-
 func TestFlagSet(t *testing.T) {
 	SetFlags(SFILE)
-	SetFlags(NONE, LEVEL_FATAL)
+	SetFlags(NONE, LEVEL_MIDDLE_OF_NIGHT)
 	cases := []struct {
 		logger   *log.Logger
 		name     string
 		expected bool
 	}{
-		{WARN, "warn", true},
-		{FATAL, "fatal", false},
+		{toInvestigateTomorrow, "warn", true},
+		{wakeMeInTheMiddleOfTheNight, "error", false},
 	}
 	for _, tc := range cases {
 		t.Run(fmt.Sprintf(tc.name), func(t *testing.T) {
@@ -110,4 +83,45 @@ func TestFlagSet(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestWriterOutput(t *testing.T) {
+	cases := []struct {
+		name     string
+		logger	 *log.Logger
+		multi    bool
+		expected bool
+	}{
+		{LEVEL_TOMORROW, toInvestigateTomorrow, false, true},
+		{"invalid", inTest, false, false},
+		{LEVEL_TOMORROW, toInvestigateTomorrow, true, true},
+	}
+	for _, tc := range cases {
+		t.Run(fmt.Sprintf(tc.name), func(t *testing.T) {
+			buffer := new(bytes.Buffer)
+			extra := new(bytes.Buffer)
+			if tc.multi == true {
+				SetOutput(tc.name, buffer, extra)
+			} else {
+				SetOutput(tc.name, buffer)
+			}
+			tc.logger.Println(tc.name, "test message")
+			if tc.expected == true {
+				assert.Contains(t, buffer.String(), "test message")
+				if tc.multi == true {
+					assert.Contains(t, extra.String(), "test message")
+				}
+			} else {
+				assert.NotContains(t, buffer.String(), "test message")
+			}
+		})
+	}
+
+	// Empty logger
+	buffer := new(bytes.Buffer)
+	SetThreshold(LEVEL_PRODUCTION)
+	SetOutput(LEVEL_PRODUCTION, buffer)
+	SetOutput(LEVEL_TOMORROW)
+	toInvestigateTomorrow.Println("empty")
+	assert.Contains(t, buffer.String(), "no io.Writer(s) provided")
 }
