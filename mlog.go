@@ -44,16 +44,16 @@ var (
 
 	DISCARD io.Writer = ioutil.Discard
 
-	inTest    									*log.Logger = log.New(os.Stdout, "", COMMON)
-	inProd     									*log.Logger = log.New(os.Stdout, "", COMMON)
-	toInvestigateTomorrow     	*log.Logger = log.New(os.Stdout, "", COMMON)
-	wakeMeInTheMiddleOfTheNight *log.Logger = log.New(os.Stdout, "", COMMON)
+	InTest    									*log.Logger = log.New(os.Stdout, "", COMMON)
+	InProd     									*log.Logger = log.New(os.Stdout, "", COMMON)
+	ToInvestigateTomorrow     	*log.Logger = log.New(os.Stdout, "", COMMON)
+	WakeMeInTheMiddleOfTheNight *log.Logger = log.New(os.Stdout, "", COMMON)
 
 	loggers map[string]*mlogger = map[string]*mlogger{
-		"debug":    &mlogger{prefix: "DEBUG: ", writer: os.Stdout, logger: inTest},
-		"info":     &mlogger{prefix: "INFO: ", writer: os.Stdout, logger: inProd},
-		"warn":     &mlogger{prefix: "WARN: ", writer: os.Stdout, logger: toInvestigateTomorrow},
-		"error":    &mlogger{prefix: "ERROR: ", writer: os.Stdout, logger: wakeMeInTheMiddleOfTheNight},
+		"debug":    &mlogger{prefix: "DEBUG: ", writer: os.Stdout, logger: InTest},
+		"info":     &mlogger{prefix: "INFO: ", writer: os.Stdout, logger: InProd},
+		"warn":     &mlogger{prefix: "WARN: ", writer: os.Stdout, logger: ToInvestigateTomorrow},
+		"error":    &mlogger{prefix: "ERROR: ", writer: os.Stdout, logger: WakeMeInTheMiddleOfTheNight},
 	}
 )
 
@@ -100,14 +100,14 @@ func SetFlags(flagset int, loggerList ...string) {
 func SetOutput(logger string, writers ...io.Writer) {
 	handler, ok := loggers[logger]
 	if ok == false {
-		inProd.Printf("cannot set output of unknown logger '%s'", logger)
+		InProd.Printf("cannot set output of unknown logger '%s'", logger)
 		return
 	}
 
 	// Set the logger's writer (ignoring thresholding)
 	switch len(writers) {
 	case 0:
-		inProd.Println("no io.Writer(s) provided for output", logger)
+		InProd.Println("no io.Writer(s) provided for output", logger)
 		return
 	case 1:
 		handler.writer = writers[0]
@@ -124,7 +124,7 @@ func SetOutput(logger string, writers ...io.Writer) {
 func SetThreshold(level string) {
 	// Update overall level
 	if _, ok := levelsEnum[level]; ok == false {
-		inProd.Printf("ignoring invalid log level '%s'", level)
+		InProd.Printf("ignoring invalid log level '%s'", level)
 		return
 	}
 
