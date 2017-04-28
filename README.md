@@ -44,7 +44,7 @@ The logger names are verbose and self descriptive. This makes it easier to decid
 
 The library defaults to the following behavior:
 
-- Log threshold level is `DEBUG`, meaning everything is outputt
+- Log threshold level is `INFO` ("production")
 - `WARN`, `ERROR` messages are logged to `STDOUT`
 - Flags are: `DATE`, `TIME`, and `SFILE`
 
