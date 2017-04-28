@@ -25,16 +25,16 @@ These loggers are default Go loggers and can be used like the following:
 import "gitlab.com/mikattack/mlog"
 
 // DEBUG
-mlog.inTest.Printf('Noisey output, useful for development')
+mlog.InTest.Printf('Noisey output, useful for development')
 
 // INFO
-mlog.inProd.Printf('Information needed to debug production issues')
+mlog.InProd.Printf('Information needed to debug production issues')
 
 // WARN
-mlog.toInvestigateTomorrow.Printf('Needs investigation, but can wait until tomorrow')
+mlog.ToInvestigateTomorrow.Printf('Needs investigation, but can wait until tomorrow')
 
 // ERROR
-mlog.wakeMeInTheMiddleOfTheNight.Printf("Needs attention RIGHT NOW")
+mlog.WakeMeInTheMiddleOfTheNight.Printf("Needs attention RIGHT NOW")
 ```
 
 The logger names are verbose and self descriptive. This makes it easier to decide which level to output at.

@@ -41,10 +41,10 @@ func TestDefaultThresholdLogging(t *testing.T) {
 		message  string
 		expected bool
 	}{
-		{wakeMeInTheMiddleOfTheNight, "error", "standard error", true},
-		{toInvestigateTomorrow, "warn", "warning message", true},
-		{inProd, "info", "information", false},
-		{inTest, "debug", "debug message", false},
+		{WakeMeInTheMiddleOfTheNight, "error", "standard error", true},
+		{ToInvestigateTomorrow, "warn", "warning message", true},
+		{InProd, "info", "information", false},
+		{InTest, "debug", "debug message", false},
 	}
 	for _, tc := range cases {
 		t.Run(fmt.Sprintf(tc.message), func(t *testing.T) {
@@ -68,8 +68,8 @@ func TestFlagSet(t *testing.T) {
 		name     string
 		expected bool
 	}{
-		{toInvestigateTomorrow, "warn", true},
-		{wakeMeInTheMiddleOfTheNight, "error", false},
+		{ToInvestigateTomorrow, "warn", true},
+		{WakeMeInTheMiddleOfTheNight, "error", false},
 	}
 	for _, tc := range cases {
 		t.Run(fmt.Sprintf(tc.name), func(t *testing.T) {
@@ -92,9 +92,9 @@ func TestWriterOutput(t *testing.T) {
 		multi    bool
 		expected bool
 	}{
-		{LEVEL_TOMORROW, toInvestigateTomorrow, false, true},
-		{"invalid", inTest, false, false},
-		{LEVEL_TOMORROW, toInvestigateTomorrow, true, true},
+		{LEVEL_TOMORROW, ToInvestigateTomorrow, false, true},
+		{"invalid", InTest, false, false},
+		{LEVEL_TOMORROW, ToInvestigateTomorrow, true, true},
 	}
 	for _, tc := range cases {
 		t.Run(fmt.Sprintf(tc.name), func(t *testing.T) {
@@ -122,6 +122,6 @@ func TestWriterOutput(t *testing.T) {
 	SetThreshold(LEVEL_PRODUCTION)
 	SetOutput(LEVEL_PRODUCTION, buffer)
 	SetOutput(LEVEL_TOMORROW)
-	toInvestigateTomorrow.Println("empty")
+	ToInvestigateTomorrow.Println("empty")
 	assert.Contains(t, buffer.String(), "no io.Writer(s) provided")
 }
