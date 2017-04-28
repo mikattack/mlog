@@ -2,7 +2,7 @@
 
 A wrapper around the excellent standard Go logging library, `mlog` satisfies my logging preferences in ways that no other package quite has.  It provides:
 
-- Logging levels
+- Self-explanitory logging levels (under a [sensible abstraction](http://labs.ig.com/logging-level-wrong-abstraction))
 - Easy control of where messages are logged to
 - Easy control of what levels are logged
 - No requirements for configuration or initialization (sensible defaults)
@@ -17,46 +17,47 @@ Additionally, while this library supports logging to any destination, if that de
 
 # Usage
 
-No initialization or configuration is necessary.  The library works by creating a number of loggers which correspond to the following logging levels: `TRACE`, `DEBUG `, `INFO `, `WARN `, `ERROR`, `CRITICAL`, and `FATAL`.
+No initialization or configuration is necessary.  The library works by creating a number of loggers which correspond to the following logging levels: `DEBUG `, `INFO `, `WARN `, and `ERROR`.
 
-These loggers are very basic, offering only `Println` and `Printf`:
+These loggers are default Go loggers and can be used like the following:
 
 ```
 import "gitlab.com/mikattack/mlog"
 
-...
+// DEBUG
+mlog.inTest.Printf('Noisey output, useful for development')
 
-if err != nil {
-  mlog.ERROR.Println(err)
-}
-if warn != nil {
-  mlog.WARN.Println(warn)
-}
+// INFO
+mlog.inProd.Printf('Information needed to debug production issues')
 
-mlog.INFO.Printf("the ice skates are %s", color)
+// WARN
+mlog.toInvestigateTomorrow.Printf('Needs investigation, but can wait until tomorrow')
+
+// ERROR
+mlog.wakeMeInTheMiddleOfTheNight.Printf("Needs attention RIGHT NOW")
 ```
 
-While seven log levels is a lot, you can choose to use the ones appropriate for your application. Only those messages falling within the range of the logging threshold will actually be output.
+The logger names are verbose and self descriptive. This makes it easier to decide which level to output at.
 
 
 # Configuration
 
 The library defaults to the following behavior:
 
-- Log level is `WARN`
-- `TRACE`, `DEBUG` and `INFO` messages are discarded
-- `WARN`, `ERROR`, `CRITICAL`, and `FATAL` messages are logged to `STDOUT`
+- Log threshold level is `DEBUG`, meaning everything is outputt
+- `WARN`, `ERROR` messages are logged to `STDOUT`
 - Flags are: `DATE`, `TIME`, and `SFILE`
 
 Each of these settings are configurable.
 
 ### Change logging threshold
 
-The threshold can be changed at any time, but will only affect calls executed after the change was made.
+The threshold can be changed at any time, but will only affect calls executed after the change was made. Anything below the configured level (exclusive) will not be logged.
 
 ```
-if verbose == true {
-  mlog.SetLogThreshold(mlog.LEVEL_TRACE)
+// Exclue INFO ("inTest") messages
+if verbose == false {
+  mlog.SetLogThreshold(mlog.LEVEL_PRODUCTION)
 }
 ```
 
@@ -70,10 +71,11 @@ import (
   "gitlab.com/mikattack/mlog"
 )
 
-mlog.SetOutput(mlog.LEVEL_WARN, os.Stderr)
-mlog.SetOutput(mlog.LEVEL_ERROR, os.Stderr)
-mlog.SetOutput(mlog.LEVEL_CRITICAL, os.Stderr)
-mlog.SetOutput(mlog.LEVEL_FATAL, os.Stderr)
+mlog.SetOutput(mlog.LEVEL_TEST, os.Stderr)
+mlog.SetOutput(mlog.LEVEL_PRODUCTION, os.Stderr)
+
+mlog.SetOutput(mlog.LEVEL_TOMORROW, os.Stderr)
+mlog.SetOutput(mlog.LEVEL_MIDDLE_OF_NIGHT, os.Stderr)
 ```
 
 Because the output is just an `io.Writer`, it's also easy to write log streams to a file:
@@ -82,17 +84,17 @@ Because the output is just an `io.Writer`, it's also easy to write log streams t
 file := os.OpenFile("/var/tmp/warnings.log", os.O_RDWR|os.O_APPEND, 0660);
 defer file.Close()
 
-mlog.SetOutput(mlog.LEVEL_WARN, file)
+mlog.SetOutput(mlog.LEVEL_TOMORROW, file)
 ```
 
 If you need to get extra fancy, you can log messages to multiple sources:
 
 ```
-errlog := os.OpenFile("/var/tmp/error.log", os.O_RDWR|os.O_APPEND, 0660);
+errlog := os.OpenFile("/var/tmp/critical.log", os.O_RDWR|os.O_APPEND, 0660);
 defer errlog.Close()
 
-// Output ERROR messages to STDERR and "/var/tmp/errors.log"
-mlog.SetOutput(mlog.LEVEL_ERROR, os.Stderr, errlog)
+// Output critical messages to STDERR and "/var/tmp/critical.log"
+mlog.SetOutput(mlog.LEVEL_MIDDLE_OF_NIGHT, os.Stderr, errlog)
 ```
 
 ### Change log flags
@@ -109,9 +111,9 @@ Flags control what extra information gets added to every message:
 Flags may be set per log stream or all at once:
 
 ```
-// Strip all extra output for log streams, except ERROR
+// Strip all extra output for log streams, except critical messages
 mlog.SetFlags(NONE)
-mlog.SetFlags(DATE | TIME | SFILE, mlog.LEVEL_ERROR)
+mlog.SetFlags(DATE | TIME | SFILE, mlog.LEVEL_MIDDLE_OF_NIGHT)
 ```
 
 
