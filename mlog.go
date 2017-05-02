@@ -143,3 +143,13 @@ func SetThreshold(level string) {
 		}
 	}
 }
+
+func WithPrefix(enable bool) {
+	for _, l := range loggers {
+		prefix := ""
+		if enable {
+			prefix = l.prefix
+		}
+		l.logger.SetPrefix(prefix)
+	}
+}
