@@ -116,6 +116,17 @@ mlog.SetFlags(NONE)
 mlog.SetFlags(DATE | TIME | SFILE, mlog.LEVEL_MIDDLE_OF_NIGHT)
 ```
 
+### Toggle log prefixes
+
+Each message is automatically prefixed with its logging level (`DEBUG`, `INFO`, `WARN`, or `ERROR`). You may toggle this prefix on and off:
+
+```
+mlog.WithPrefix(true)   // On!
+mlog.WithPrefix(false)  // Off
+```
+
+You cannot toggle individual logging levels.
+
 
 # More Information
 

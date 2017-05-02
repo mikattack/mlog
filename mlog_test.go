@@ -125,3 +125,30 @@ func TestWriterOutput(t *testing.T) {
 	ToInvestigateTomorrow.Println("empty")
 	assert.Contains(t, buffer.String(), "no io.Writer(s) provided")
 }
+
+func TestPrefix(t *testing.T) {
+	//prefixes := []string{"WARN", "INFO", "WARN", "ERROR"}
+	cases := []struct {
+		name     string
+		enabled  bool
+	}{
+		{"with prefix", true},
+		{"without prefix", false},
+	}
+	for _, tc := range cases {
+		t.Run(fmt.Sprintf(tc.name), func(t *testing.T) {
+			buffer := new(bytes.Buffer)
+			WithPrefix(tc.enabled)
+			for _, l := range loggers {
+				l.logger.SetOutput(buffer)
+				l.logger.Println("test message")
+				if tc.enabled {
+					assert.Contains(t, buffer.String(), l.prefix)
+				} else {
+					assert.NotContains(t, buffer.String(), l.prefix)
+				}
+				buffer.Reset()
+			}
+		})
+	}
+}
