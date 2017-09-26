@@ -10,47 +10,46 @@ package mlog
 import (
 	"bytes"
 	"fmt"
-	"log"
+	"regexp"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 )
 
-func TestSetLevel(t *testing.T) {
+func TestGlobalSetThreshold(t *testing.T) {
 	cases := []struct {
-		level    string
-		expected string
+		level    LogLevel
+		expected LogLevel
 	}{
-		{LEVEL_PRODUCTION, LEVEL_PRODUCTION},
-		{"whatever", LEVEL_PRODUCTION},
-		{LEVEL_TOMORROW, LEVEL_TOMORROW},
+		{IN_PRODUCTION, IN_PRODUCTION},
+		{"whatever", IN_PRODUCTION},
+		{TO_INVESTIGATE, TO_INVESTIGATE},
 	}
 	for _, tc := range cases {
-		t.Run(fmt.Sprintf(tc.level), func(t *testing.T) {
+		t.Run(fmt.Sprintf(string(tc.level)), func(t *testing.T) {
 			SetThreshold(tc.level)
 			assert.Equal(t, Threshold(), tc.expected)
 		})
 	}
 }
 
-func TestDefaultThresholdLogging(t *testing.T) {
-	SetThreshold(LEVEL_TOMORROW)
+func TestThresholdLogging(t *testing.T) {
+	std.SetThreshold(TO_INVESTIGATE)
 	cases := []struct {
-		logger   *log.Logger
-		name     string
+		level    LogLevel
 		message  string
 		expected bool
 	}{
-		{WakeMeInTheMiddleOfTheNight, "error", "standard error", true},
-		{ToInvestigateTomorrow, "warn", "warning message", true},
-		{InProd, "info", "information", false},
-		{InTest, "debug", "debug message", false},
+		{PAGE_ME_NOW, "standard error", true},
+		{TO_INVESTIGATE, "warning message", true},
+		{IN_PRODUCTION, "information", false},
+		{IN_TESTING, "debug message", false},
 	}
 	for _, tc := range cases {
 		t.Run(fmt.Sprintf(tc.message), func(t *testing.T) {
 			buffer := new(bytes.Buffer)
-			SetOutput(tc.name, buffer)
-			tc.logger.Println(tc.message)
+			std.SetOutput(buffer)
+			std.log(tc.level, tc.message)
 			if tc.expected == true {
 				assert.Contains(t, buffer.String(), tc.message)
 			} else {
@@ -61,26 +60,22 @@ func TestDefaultThresholdLogging(t *testing.T) {
 }
 
 func TestFlagSet(t *testing.T) {
-	SetFlags(SFILE)
-	SetFlags(NONE, LEVEL_MIDDLE_OF_NIGHT)
+	std.SetFlags(LEVEL | FILE)
+	var validator = regexp.MustCompile(`^\[[A-Z]\] .+\.go: test message$`)
 	cases := []struct {
-		logger   *log.Logger
-		name     string
-		expected bool
+		level LogLevel
+		name  string
 	}{
-		{ToInvestigateTomorrow, "warn", true},
-		{WakeMeInTheMiddleOfTheNight, "error", false},
+		{TO_INVESTIGATE, "warn"},
+		{PAGE_ME_NOW, "error"},
 	}
 	for _, tc := range cases {
 		t.Run(fmt.Sprintf(tc.name), func(t *testing.T) {
 			buffer := new(bytes.Buffer)
-			SetOutput(tc.name, buffer)
-			tc.logger.Println(tc.name, "test message")
-			if tc.expected == true {
-				assert.Contains(t, buffer.String(), ".go:")
-			} else {
-				assert.NotContains(t, buffer.String(), ".go:")
-			}
+			std.SetOutput(buffer)
+			std.log(tc.level, "test message")
+			validation := validator.MatchString(buffer.String())
+			assert.Equal(t, validation, true)
 		})
 	}
 }
@@ -88,24 +83,24 @@ func TestFlagSet(t *testing.T) {
 func TestWriterOutput(t *testing.T) {
 	cases := []struct {
 		name     string
-		logger	 *log.Logger
+		level    LogLevel
 		multi    bool
 		expected bool
 	}{
-		{LEVEL_TOMORROW, ToInvestigateTomorrow, false, true},
-		{"invalid", InTest, false, false},
-		{LEVEL_TOMORROW, ToInvestigateTomorrow, true, true},
+		{"Investigate", TO_INVESTIGATE, false, true},
+		{"invalid", IN_TESTING, false, false},
+		{"Investigate", TO_INVESTIGATE, true, true},
 	}
 	for _, tc := range cases {
 		t.Run(fmt.Sprintf(tc.name), func(t *testing.T) {
 			buffer := new(bytes.Buffer)
 			extra := new(bytes.Buffer)
 			if tc.multi == true {
-				SetOutput(tc.name, buffer, extra)
+				std.SetOutput(buffer, extra)
 			} else {
-				SetOutput(tc.name, buffer)
+				std.SetOutput(buffer)
 			}
-			tc.logger.Println(tc.name, "test message")
+			std.log(tc.level, "test message")
 			if tc.expected == true {
 				assert.Contains(t, buffer.String(), "test message")
 				if tc.multi == true {
@@ -117,20 +112,17 @@ func TestWriterOutput(t *testing.T) {
 		})
 	}
 
-	// Empty logger
+	// Test setting an empty logger
 	buffer := new(bytes.Buffer)
-	SetThreshold(LEVEL_PRODUCTION)
-	SetOutput(LEVEL_PRODUCTION, buffer)
-	SetOutput(LEVEL_TOMORROW)
-	ToInvestigateTomorrow.Println("empty")
-	assert.Contains(t, buffer.String(), "no io.Writer(s) provided")
+	std.SetOutput(buffer) // Set a fallback buffer
+	std.SetOutput()
+	assert.Contains(t, buffer.String(), "SetOutput: no io.Writer(s) provided")
 }
 
 func TestPrefix(t *testing.T) {
-	//prefixes := []string{"WARN", "INFO", "WARN", "ERROR"}
 	cases := []struct {
-		name     string
-		enabled  bool
+		name    string
+		enabled bool
 	}{
 		{"with prefix", true},
 		{"without prefix", false},
@@ -138,16 +130,17 @@ func TestPrefix(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(fmt.Sprintf(tc.name), func(t *testing.T) {
 			buffer := new(bytes.Buffer)
-			WithPrefix(tc.enabled)
-			for _, l := range loggers {
-				l.logger.SetOutput(buffer)
-				l.logger.Println("test message")
-				if tc.enabled {
-					assert.Contains(t, buffer.String(), l.prefix)
-				} else {
-					assert.NotContains(t, buffer.String(), l.prefix)
-				}
-				buffer.Reset()
+			std.SetOutput(buffer)
+			if tc.enabled {
+				SetFlags(LEVEL)
+			} else {
+				SetFlags(FILE)
+			}
+			std.log(PAGE_ME_NOW, "test message")
+			if tc.enabled {
+				assert.Contains(t, buffer.String(), "[ERROR]")
+			} else {
+				assert.NotContains(t, buffer.String(), "[ERROR]")
 			}
 		})
 	}
