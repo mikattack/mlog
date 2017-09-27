@@ -124,11 +124,13 @@ func (l *Logger) SetOutput(writers ...io.Writer) {
 // Sets the level the logger should emit messages at.
 func (l *Logger) SetThreshold(level LogLevel) {
 	l.mu.Lock()
-	defer l.mu.Unlock()
 	if _, ok := levelOrder[level]; ok == false {
+		l.mu.Unlock()
+		l.log(TO_INVESTIGATE, "Invalid log level: %s", string(level))
 		return // Ignore invalid log levels
 	}
 	l.level = level
+	l.mu.Unlock()
 }
 
 // Logs a message "in testing". This level is intended for noisy and
@@ -160,10 +162,10 @@ func (l *Logger) PageMeNow(format string, args ...interface{}) {
 // set by the logger. If a given logging level is unknown (because of
 // custom logging levels), the threshold check will always fail.
 func (l *Logger) meetsThreshold(level LogLevel) bool {
-	threshold, tOk := levelOrder[l.level]
-	requestLevel, rOk := levelOrder[level]
-	if tOk == false || rOk == false {
-		fmt.Fprintf(l.out, "Invalid log level in comparison: %s >= %s", level, l.level)
+	threshold := levelOrder[l.level]
+	requestLevel, ok := levelOrder[level]
+	if ok == false {
+		fmt.Fprintf(l.out, "Invalid log level: %s\n", level)
 		return false
 	}
 	return requestLevel >= threshold
@@ -245,9 +247,9 @@ func (l *Logger) log(level LogLevel, format string, args ...interface{}) error {
 
 	if l.flag&FILE != 0 {
 		l.mu.Unlock()
-		var okay bool
-		_, file, line, okay = runtime.Caller(default_call_level)
-		if !okay {
+		var ok bool
+		_, file, line, ok = runtime.Caller(default_call_level)
+		if !ok {
 			file = "???"
 			line = 0
 		}

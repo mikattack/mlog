@@ -180,3 +180,16 @@ func TestPrefix(t *testing.T) {
 		})
 	}
 }
+
+func TestInvalidLogLevel(t *testing.T) {
+	buffer := new(bytes.Buffer)
+	logger := New(buffer, 0)
+	var NONSENSE LogLevel = "nonsense"
+
+	logger.SetThreshold(NONSENSE)
+	assert.Contains(t, buffer.String(), "Invalid log level: nonsense\n")
+	buffer.Reset()
+
+	logger.log(NONSENSE, "invalid log level")
+	assert.Contains(t, buffer.String(), "Invalid log level: nonsense\n")
+}
