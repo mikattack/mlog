@@ -59,9 +59,42 @@ func TestThresholdLogging(t *testing.T) {
 	}
 }
 
+func TestLoggingFunctions(t *testing.T) {
+	buffer := new(bytes.Buffer)
+	std.SetFlags(0)
+	std.SetThreshold(IN_TESTING)
+	std.SetOutput(buffer)
+
+	std.InTesting("debug")
+	assert.Equal(t, buffer.String(), "debug\n")
+	buffer.Reset()
+
+	std.InProduction("info")
+	assert.Equal(t, buffer.String(), "info\n")
+	buffer.Reset()
+
+	std.ToInvestigate("warning")
+	assert.Equal(t, buffer.String(), "warning\n")
+	buffer.Reset()
+
+	std.PageMeNow("error")
+	assert.Equal(t, buffer.String(), "error\n")
+}
+
+func TestFormattedLogging(t *testing.T) {
+	buffer := new(bytes.Buffer)
+	std.SetFlags(0)
+	std.SetThreshold(IN_TESTING)
+	std.SetOutput(buffer)
+
+	std.InTesting("example: %d", 42)
+	assert.Equal(t, buffer.String(), "example: 42\n")
+}
+
 func TestFlagSet(t *testing.T) {
+	var validator = regexp.MustCompile(`^\[[A-Z]+\] .+\.go:[0-9]+: test message\n?$`)
 	std.SetFlags(LEVEL | FILE)
-	var validator = regexp.MustCompile(`^\[[A-Z]\] .+\.go: test message$`)
+	std.SetThreshold(TO_INVESTIGATE)
 	cases := []struct {
 		level LogLevel
 		name  string
@@ -111,9 +144,11 @@ func TestWriterOutput(t *testing.T) {
 			}
 		})
 	}
+}
 
-	// Test setting an empty logger
+func TestEmptyOutput(t *testing.T) {
 	buffer := new(bytes.Buffer)
+	std.SetThreshold(IN_PRODUCTION)
 	std.SetOutput(buffer) // Set a fallback buffer
 	std.SetOutput()
 	assert.Contains(t, buffer.String(), "SetOutput: no io.Writer(s) provided")
