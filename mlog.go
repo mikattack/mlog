@@ -19,7 +19,7 @@ import (
 	"time"
 )
 
-const default_call_level = 2
+const default_call_depth = 2
 
 type LogLevel string
 
@@ -126,7 +126,7 @@ func (l *Logger) SetThreshold(level LogLevel) {
 	l.mu.Lock()
 	if _, ok := levelOrder[level]; ok == false {
 		l.mu.Unlock()
-		l.log(TO_INVESTIGATE, "Invalid log level: %s", string(level))
+		l.log(1, TO_INVESTIGATE, fmt.Sprintf("Invalid log level: %s", string(level)))
 		return // Ignore invalid log levels
 	}
 	l.level = level
@@ -136,26 +136,26 @@ func (l *Logger) SetThreshold(level LogLevel) {
 // Logs a message "in testing". This level is intended for noisy and
 // verbose output, often during development.
 func (l *Logger) InTesting(format string, args ...interface{}) {
-	l.log(IN_TESTING, format, args...)
+	l.log(default_call_depth, IN_TESTING, fmt.Sprintf(format, args...))
 }
 
 // Logs a message "in production". This level is intended for information
 // needed to debug production issues.
 func (l *Logger) InProduction(format string, args ...interface{}) {
-	l.log(IN_PRODUCTION, format, args...)
+	l.log(default_call_depth, IN_PRODUCTION, fmt.Sprintf(format, args...))
 }
 
 // Logs a message "to investigate later". This level is intended for
 // important events which require special, but not immediate attention.
 func (l *Logger) ToInvestigate(format string, args ...interface{}) {
-	l.log(TO_INVESTIGATE, format, args...)
+	l.log(default_call_depth, TO_INVESTIGATE, fmt.Sprintf(format, args...))
 }
 
 // Logs a message of such importance, it should wake someone up in the
 // the middle of the night. This level is intended for events which require
 // immediate attention.
 func (l *Logger) PageMeNow(format string, args ...interface{}) {
-	l.log(PAGE_ME_NOW, format, args...)
+	l.log(default_call_depth, PAGE_ME_NOW, fmt.Sprintf(format, args...))
 }
 
 // Evaluates whether a given logging level meets the threshold currently
@@ -165,7 +165,7 @@ func (l *Logger) meetsThreshold(level LogLevel) bool {
 	threshold := levelOrder[l.level]
 	requestLevel, ok := levelOrder[level]
 	if ok == false {
-		fmt.Fprintf(l.out, "Invalid log level: %s\n", level)
+		l.log(1, TO_INVESTIGATE, fmt.Sprintf("Invalid log level: %s", string(level)))
 		return false
 	}
 	return requestLevel >= threshold
@@ -229,7 +229,7 @@ func (l *Logger) formatHeader(buffer *[]byte, level LogLevel, t time.Time, file 
 }
 
 // Logs a message at a given level
-func (l *Logger) log(level LogLevel, format string, args ...interface{}) error {
+func (l *Logger) log(calldepth int, level LogLevel, str string) error {
 	if l.meetsThreshold(level) == false {
 		return nil
 	}
@@ -248,7 +248,7 @@ func (l *Logger) log(level LogLevel, format string, args ...interface{}) error {
 	if l.flag&FILE != 0 {
 		l.mu.Unlock()
 		var ok bool
-		_, file, line, ok = runtime.Caller(default_call_level)
+		_, file, line, ok = runtime.Caller(calldepth)
 		if !ok {
 			file = "???"
 			line = 0
@@ -258,13 +258,9 @@ func (l *Logger) log(level LogLevel, format string, args ...interface{}) error {
 
 	l.buffer = l.buffer[:0] // Empty buffer
 	l.formatHeader(&l.buffer, level, now, file, line)
-	if len(args) > 0 {
-		l.buffer = append(l.buffer, fmt.Sprintf(format, args...)...)
-	} else {
-		l.buffer = append(l.buffer, format...)
-	}
+	l.buffer = append(l.buffer, str...)
 
-	if len(format) == 0 || format[len(format)-1] != '\n' {
+	if len(str) == 0 || str[len(str)-1] != '\n' {
 		l.buffer = append(l.buffer, '\n')
 	}
 
