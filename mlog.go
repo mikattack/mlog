@@ -105,17 +105,20 @@ func (l *Logger) SetFlags(flag int) {
 // Sets the output destination for the logger.
 func (l *Logger) SetOutput(writers ...io.Writer) {
 	l.mu.Lock()
-	defer l.mu.Unlock()
 
 	switch len(writers) {
 	case 0:
-		InProduction("SetOutput: no io.Writer(s) provided for output")
+		// Report invalid output writer to original output sink
+		l.mu.Unlock()
+		l.ToInvestigate("SetOutput: no io.Writer(s) provided for output")
 		return
 	case 1:
 		l.out = writers[0]
 	default:
 		l.out = io.MultiWriter(writers...)
 	}
+
+	l.mu.Unlock()
 }
 
 // Sets the level the logger should emit messages at.
@@ -131,26 +134,26 @@ func (l *Logger) SetThreshold(level LogLevel) {
 // Logs a message "in testing". This level is intended for noisy and
 // verbose output, often during development.
 func (l *Logger) InTesting(format string, args ...interface{}) {
-	l.log(IN_TESTING, format, args)
+	l.log(IN_TESTING, format, args...)
 }
 
 // Logs a message "in production". This level is intended for information
 // needed to debug production issues.
 func (l *Logger) InProduction(format string, args ...interface{}) {
-	l.log(IN_PRODUCTION, format, args)
+	l.log(IN_PRODUCTION, format, args...)
 }
 
 // Logs a message "to investigate later". This level is intended for
 // important events which require special, but not immediate attention.
 func (l *Logger) ToInvestigate(format string, args ...interface{}) {
-	l.log(TO_INVESTIGATE, format, args)
+	l.log(TO_INVESTIGATE, format, args...)
 }
 
 // Logs a message of such importance, it should wake someone up in the
 // the middle of the night. This level is intended for events which require
 // immediate attention.
 func (l *Logger) PageMeNow(format string, args ...interface{}) {
-	l.log(PAGE_ME_NOW, format, args)
+	l.log(PAGE_ME_NOW, format, args...)
 }
 
 // Evaluates whether a given logging level meets the threshold currently
@@ -253,7 +256,7 @@ func (l *Logger) log(level LogLevel, format string, args ...interface{}) error {
 
 	l.buffer = l.buffer[:0] // Empty buffer
 	l.formatHeader(&l.buffer, level, now, file, line)
-	if len(args) > 1 {
+	if len(args) > 0 {
 		l.buffer = append(l.buffer, fmt.Sprintf(format, args...)...)
 	} else {
 		l.buffer = append(l.buffer, format...)
