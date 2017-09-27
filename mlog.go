@@ -131,34 +131,26 @@ func (l *Logger) SetThreshold(level LogLevel) {
 // Logs a message "in testing". This level is intended for noisy and
 // verbose output, often during development.
 func (l *Logger) InTesting(format string, args ...interface{}) {
-	if l.meetsThreshold(IN_TESTING) {
-		l.log(IN_TESTING, format, args)
-	}
+	l.log(IN_TESTING, format, args)
 }
 
 // Logs a message "in production". This level is intended for information
 // needed to debug production issues.
 func (l *Logger) InProduction(format string, args ...interface{}) {
-	if l.meetsThreshold(IN_PRODUCTION) {
-		l.log(IN_PRODUCTION, format, args)
-	}
+	l.log(IN_PRODUCTION, format, args)
 }
 
 // Logs a message "to investigate later". This level is intended for
 // important events which require special, but not immediate attention.
 func (l *Logger) ToInvestigate(format string, args ...interface{}) {
-	if l.meetsThreshold(TO_INVESTIGATE) {
-		l.log(TO_INVESTIGATE, format, args)
-	}
+	l.log(TO_INVESTIGATE, format, args)
 }
 
 // Logs a message of such importance, it should wake someone up in the
 // the middle of the night. This level is intended for events which require
 // immediate attention.
 func (l *Logger) PageMeNow(format string, args ...interface{}) {
-	if l.meetsThreshold(PAGE_ME_NOW) {
-		l.log(PAGE_ME_NOW, format, args)
-	}
+	l.log(PAGE_ME_NOW, format, args)
 }
 
 // Evaluates whether a given logging level meets the threshold currently
@@ -168,7 +160,7 @@ func (l *Logger) meetsThreshold(level LogLevel) bool {
 	threshold, tOk := levelOrder[l.level]
 	requestLevel, rOk := levelOrder[level]
 	if tOk == false || rOk == false {
-		fmt.Printf("Invalid log level in comparison: %s >= %s", level, l.level)
+		fmt.Fprintf(l.out, "Invalid log level in comparison: %s >= %s", level, l.level)
 		return false
 	}
 	return requestLevel >= threshold
@@ -233,6 +225,10 @@ func (l *Logger) formatHeader(buffer *[]byte, level LogLevel, t time.Time, file 
 
 // Logs a message at a given level
 func (l *Logger) log(level LogLevel, format string, args ...interface{}) error {
+	if l.meetsThreshold(level) == false {
+		return nil
+	}
+
 	var now time.Time
 	if l.flag&DATE != 0 {
 		now = time.Now()
@@ -257,10 +253,16 @@ func (l *Logger) log(level LogLevel, format string, args ...interface{}) error {
 
 	l.buffer = l.buffer[:0] // Empty buffer
 	l.formatHeader(&l.buffer, level, now, file, line)
-	l.buffer = append(l.buffer, format...)
+	if len(args) > 1 {
+		l.buffer = append(l.buffer, fmt.Sprintf(format, args...)...)
+	} else {
+		l.buffer = append(l.buffer, format...)
+	}
+
 	if len(format) == 0 || format[len(format)-1] != '\n' {
 		l.buffer = append(l.buffer, '\n')
 	}
+
 	_, err := l.out.Write(l.buffer)
 	return err
 }
