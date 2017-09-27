@@ -57,16 +57,9 @@ if verbose == false {
 
 ### Change output destination
 
-All log messages go to `STDOUT` by default, but can be customized on a per-level basis.  For example, to get that true 12-Factor setup, you can send error-related message to `STDERR`:
+All log messages go to `STDOUT` by default but can be redirected anywhere:
 
 ```
-// Per level
-mlog.SetOutput(mlog.IN_TESTING, os.Stderr)
-mlog.SetOutput(mlog.IN_PRODUCTION, os.Stderr)
-mlog.SetOutput(mlog.TO_INVESTIGATE, os.Stderr)
-mlog.SetOutput(mlog.PAGE_ME_NOW, os.Stderr)
-
-// All at once
 mlog.SetOutput(os.Stderr)
 ```
 
@@ -82,11 +75,11 @@ mlog.SetOutput(file)
 If you need to get extra fancy, you can log messages to multiple sources:
 
 ```
-errlog := os.OpenFile("/var/tmp/critical.log", os.O_RDWR|os.O_APPEND, 0660);
-defer errlog.Close()
+alog := os.OpenFile("/var/tmp/activity.log", os.O_RDWR|os.O_APPEND, 0660);
+defer alog.Close()
 
-// Output critical messages to STDERR and "/var/tmp/critical.log"
-mlog.SetOutput(mlog.PAGE_ME_NOW, os.Stderr, errlog)
+// Output to STDERR and "/var/tmp/activity.log"
+mlog.SetOutput(os.Stderr, alog)
 ```
 
 ### Change log flags
@@ -97,16 +90,13 @@ Flags control what extra information gets added to every message:
 - `FILE` - Adds the file and line number the message originated from
 - `LEVEL` - Prefixes the message with the logging level
 
-All flags are enabled by default.
-
-Flags are applied uniformly to all logging levels:
+All flags are enabled by default, which is identical to the following:
 
 ```
-// Strip all extra output for log streams, except critical messages
 mlog.SetFlags(DATE | LEVEL | FILE)
 ```
 
 
 # More Information
 
-This is a convenience package designed for ease-of-use.  It doesn't do everything under the sun or anything radically different from other packages of its ilk.  The project was mostly a learning exercise.
+This is a convenience package designed for ease-of-use.  It doesn't do everything under the sun or anything radically different from other packages of its ilk.  This project was mostly a learning exercise.
