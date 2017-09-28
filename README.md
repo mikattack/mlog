@@ -1,40 +1,34 @@
 # mlog
 
-A wrapper around the excellent standard Go logging library, `mlog` satisfies my logging preferences in ways that no other package quite has.  It provides:
+A reimplementation of the the excellent standard Go logging library, `mlog` satisfies my logging preferences in ways that no other package quite has.  It provides:
 
-- Self-explanitory logging levels (under a [sensible abstraction](http://labs.ig.com/logging-level-wrong-abstraction))
-- Easy control of where messages are logged to
-- Easy control of what levels are logged
+- Self-explanitory logging levels (read [these thoughts](http://labs.ig.com/logging-level-wrong-abstraction) for the motivation behind them)
 - No requirements for configuration or initialization (sensible defaults)
-- Support for output to multiple streams, customizable per logging level
 - No `fatal` or `panic` calls
 
-This library is based heavily on [jWalterWeatherman](https://github.com/spf13/jWalterWeatherman),
-which was the closest library I'd found that met my needs.
-
-Additionally, while this library supports logging to any destination, if that destination is `syslog` then you're better off using Go's `log/syslog` package.
+This library was motivated by a desire for a different logging API and as a learning exercise.
 
 
 # Usage
 
-No initialization or configuration is necessary.  The library works by creating a number of loggers which correspond to the following logging levels: `DEBUG `, `INFO `, `WARN `, and `ERROR`.
-
-These loggers are default Go loggers and can be used like the following:
+No initialization or configuration is necessary.  Although the library supports logging levels, they are highly "opinionated" in favor of code clarity over flexibility. There are only four levels available:
 
 ```
 import "gitlab.com/mikattack/mlog"
 
-// DEBUG
-mlog.InTest.Printf('Noisey output, useful for development')
+def main() {
+    // DEBUG
+    mlog.InTesting('Noisey output, useful for development')
 
-// INFO
-mlog.InProd.Printf('Information needed to debug production issues')
+    // INFO
+    mlog.InProduction('Information needed to debug production issues')
 
-// WARN
-mlog.ToInvestigateTomorrow.Printf('Needs investigation, but can wait until tomorrow')
+    // WARN
+    mlog.ToInvestigate('Needs investigation, but can wait until tomorrow')
 
-// ERROR
-mlog.WakeMeInTheMiddleOfTheNight.Printf("Needs attention RIGHT NOW")
+    // ERROR
+    mlog.PageMeNow("Needs attention RIGHT NOW")
+}
 ```
 
 The logger names are verbose and self descriptive. This makes it easier to decide which level to output at.
@@ -44,9 +38,9 @@ The logger names are verbose and self descriptive. This makes it easier to decid
 
 The library defaults to the following behavior:
 
-- Log threshold level is `INFO` ("production")
-- `WARN`, `ERROR` messages are logged to `STDOUT`
-- Flags are: `DATE`, `TIME`, and `SFILE`
+- Log threshold level is `INFO` ("In Production")
+- Output is `STDOUT` for all logging levels
+- Flags are: `DATE`, `FILE`, and `LEVEL`
 
 Each of these settings are configurable.
 
@@ -55,27 +49,18 @@ Each of these settings are configurable.
 The threshold can be changed at any time, but will only affect calls executed after the change was made. Anything below the configured level (exclusive) will not be logged.
 
 ```
-// Exclue INFO ("inTest") messages
+// Exclude "InTesting" messages
 if verbose == false {
-  mlog.SetLogThreshold(mlog.LEVEL_PRODUCTION)
+  mlog.SetThreshold(mlog.IN_PRODUCTION)
 }
 ```
 
 ### Change output destination
 
-All log messages go to `STDOUT` by default, but can be customized on a per-level basis.  For example, to get that true 12-Factor setup, you can send error-related message to `STDERR`:
+All log messages go to `STDOUT` by default but can be redirected anywhere:
 
 ```
-import (
-  "os"
-  "gitlab.com/mikattack/mlog"
-)
-
-mlog.SetOutput(mlog.LEVEL_TEST, os.Stderr)
-mlog.SetOutput(mlog.LEVEL_PRODUCTION, os.Stderr)
-
-mlog.SetOutput(mlog.LEVEL_TOMORROW, os.Stderr)
-mlog.SetOutput(mlog.LEVEL_MIDDLE_OF_NIGHT, os.Stderr)
+mlog.SetOutput(os.Stderr)
 ```
 
 Because the output is just an `io.Writer`, it's also easy to write log streams to a file:
@@ -84,50 +69,34 @@ Because the output is just an `io.Writer`, it's also easy to write log streams t
 file := os.OpenFile("/var/tmp/warnings.log", os.O_RDWR|os.O_APPEND, 0660);
 defer file.Close()
 
-mlog.SetOutput(mlog.LEVEL_TOMORROW, file)
+mlog.SetOutput(file)
 ```
 
 If you need to get extra fancy, you can log messages to multiple sources:
 
 ```
-errlog := os.OpenFile("/var/tmp/critical.log", os.O_RDWR|os.O_APPEND, 0660);
-defer errlog.Close()
+alog := os.OpenFile("/var/tmp/activity.log", os.O_RDWR|os.O_APPEND, 0660);
+defer alog.Close()
 
-// Output critical messages to STDERR and "/var/tmp/critical.log"
-mlog.SetOutput(mlog.LEVEL_MIDDLE_OF_NIGHT, os.Stderr, errlog)
+// Output to STDERR and "/var/tmp/activity.log"
+mlog.SetOutput(os.Stderr, alog)
 ```
 
 ### Change log flags
 
 Flags control what extra information gets added to every message:
 
-- `NONE` - Adds nothing to the message (and ignored when used with other flags)
-- `DATE` - Adds the date to a message
-- `TIME` - Adds the time to a message
-- `SFILE` - Adds the file the message originated from
-- `LFILE` - Adds the line number the message originated from
-- `MSEC` - Adds microsecond resolution to the time (if present)
+- `DATE` - Adds the UTC date and time to a message
+- `FILE` - Adds the file and line number the message originated from
+- `LEVEL` - Prefixes the message with the logging level
 
-Flags may be set per log stream or all at once:
+All flags are enabled by default, which is identical to the following:
 
 ```
-// Strip all extra output for log streams, except critical messages
-mlog.SetFlags(NONE)
-mlog.SetFlags(DATE | TIME | SFILE, mlog.LEVEL_MIDDLE_OF_NIGHT)
+mlog.SetFlags(DATE | LEVEL | FILE)
 ```
-
-### Toggle log prefixes
-
-Each message is automatically prefixed with its logging level (`DEBUG`, `INFO`, `WARN`, or `ERROR`). You may toggle this prefix on and off:
-
-```
-mlog.WithPrefix(true)   // On!
-mlog.WithPrefix(false)  // Off
-```
-
-You cannot toggle individual logging levels.
 
 
 # More Information
 
-This is a convenience package designed for ease-of-use.  It doesn't do everything under the sun or anything radically different from other packages of its ilk.  The API is nice, but should not be considered stable.
+This is a convenience package designed for ease-of-use.  It doesn't do everything under the sun or anything radically different from other packages of its ilk.  This project was mostly a learning exercise.
